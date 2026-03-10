@@ -1,5 +1,6 @@
 import { useNotifications } from "../context/NotificationsContext";
 import { usePedidosRealtime } from "../hooks/usePedidosRealtime";
+import { desglosaDetalle } from "../services/pedidosService";
 
 // ── Config visual por columna ─────────────────────────────────────────────────
 const COLUMN_CONFIG = {
@@ -35,7 +36,20 @@ const COLUMN_CONFIG = {
   },
 };
 
-// ── Icono de tipo de entrega ──────────────────────────────────────────────────
+// ── Chips de items del pedido ─────────────────────────────────────────────────
+const DetalleChips = ({ detalle }) => {
+  const items = desglosaDetalle(detalle);
+  if (items.length === 0) return <span className="text-xs text-gray-400 italic">Sin detalle</span>;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {items.map(({ nombre, cantidad }, idx) => (
+        <span key={idx} className="inline-flex items-center text-[11px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
+          {cantidad > 1 ? `${cantidad}× ` : ""}{nombre}
+        </span>
+      ))}
+    </div>
+  );
+};
 const TipoIcon = ({ tipo }) => {
   if (tipo === "delivery")
     return (
@@ -56,16 +70,6 @@ const TipoIcon = ({ tipo }) => {
   );
 };
 
-// ── Formatea detalle_pedido (jsonb o string) ──────────────────────────────────
-const formatDetalle = (detalle) => {
-  if (!detalle) return "Sin detalle";
-  if (typeof detalle === "string") return detalle;
-  if (Array.isArray(detalle))
-    return detalle
-      .map((i) => `${i.cantidad ?? i.quantity ?? 1}x ${i.nombre ?? i.name ?? "Item"}`)
-      .join(", ");
-  return JSON.stringify(detalle);
-};
 
 // ── Tarjeta completada ────────────────────────────────────────────────────────
 const CompletedCard = ({ card }) => (
@@ -78,7 +82,7 @@ const CompletedCard = ({ card }) => (
     </div>
     <div className="mb-2 pl-1">
       <p className="font-medium text-sm text-gray-400 line-through">{card.cliente_nombre}</p>
-      <p className="text-xs text-gray-400 mt-1 line-clamp-1">{formatDetalle(card.detalle_pedido)}</p>
+      <DetalleChips detalle={card.detalle_pedido} />
       {card.tipo_servicio === "delivery" && card.direccion && (
         <p className="flex items-center gap-1 text-xs text-gray-400 mt-1">
           <span className="material-icons-round text-[13px]">location_on</span>
@@ -133,7 +137,7 @@ const ActiveCard = ({ card, colId, onAction, onCancel }) => {
       {/* Cuerpo */}
       <div className="mb-3 pl-1">
         <p className="font-semibold text-sm text-gray-900">{card.cliente_nombre}</p>
-        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{formatDetalle(card.detalle_pedido)}</p>
+        <DetalleChips detalle={card.detalle_pedido} />
         {total && <p className="text-sm font-bold text-gray-800 mt-1">S/ {Number(total).toFixed(2)}</p>}
         {card.tipo_servicio === "delivery" && card.direccion && (
           <p className="flex items-start gap-1 text-xs text-blue-600 mt-1.5 bg-blue-50 rounded px-2 py-1">

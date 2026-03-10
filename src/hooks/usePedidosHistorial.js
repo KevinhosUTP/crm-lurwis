@@ -6,9 +6,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { getPedidosHistorial } from "../services/pedidosService";
 
-const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 
 export const getRangoFechas = (periodo) => {
+  if (periodo === "Todo") return null; // sin filtro
+
   const hoy    = startOf(new Date());
   const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
 
@@ -23,43 +25,54 @@ export const getRangoFechas = (periodo) => {
     desde: new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1),
     hasta: new Date(hoy.getFullYear(), hoy.getMonth(), 1),
   };
-  return { desde: new Date(0), hasta: manana };
+  return null;
 };
 
 export const usePedidosHistorial = (periodo, pagosActivos) => {
-  const [pedidos, setPedidos] = useState([]);
+  const [todosLosPedidos, setTodosLosPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
-  // Estabilizar el array como string para evitar re-renders infinitos
   const pagosKey = pagosActivos.join(",");
 
+  // Carga TODOS los completados/cancelados sin filtro de fecha
+  // El filtrado por fecha se hace en cliente para evitar problemas de timezone
   const cargar = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const { desde, hasta } = getRangoFechas(periodo);
-      const pagos = pagosKey ? pagosKey.split(",") : [];
-      const data = await getPedidosHistorial({ desde, hasta, pagos });
-      setPedidos(data);
+      const data = await getPedidosHistorial({ pagos: pagosKey ? pagosKey.split(",") : [] });
+      setTodosLosPedidos(data);
     } catch (err) {
       console.error("[usePedidosHistorial]", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [periodo, pagosKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pagosKey]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  // Agrupar por estado para el Kanban del historial
+  // Filtrar en cliente por período
+  const pedidos = (() => {
+    const rango = getRangoFechas(periodo);
+    if (!rango) return todosLosPedidos;
+    return todosLosPedidos.filter((p) => {
+      const f = new Date(p.created_at);
+      return f >= rango.desde && f < rango.hasta;
+    });
+  })();
+
+  // Agrupar: completado+delivery → "completado", completado+recojo → "recogido", cancelado → "cancelado"
+  // Acepta tipo_servicio en cualquier capitalización
+  const tipoEs = (p, tipo) => (p.tipo_servicio ?? "").toLowerCase() === tipo;
+
   const porEstado = {
-    completado: pedidos.filter((p) => p.estado_pedido === "completado" && p.tipo_servicio === "delivery"),
-    recogido:   pedidos.filter((p) => p.estado_pedido === "completado" && p.tipo_servicio === "recojo"),
+    completado: pedidos.filter((p) => p.estado_pedido === "completado" && tipoEs(p, "delivery")),
+    recogido:   pedidos.filter((p) => p.estado_pedido === "completado" && tipoEs(p, "recojo")),
     cancelado:  pedidos.filter((p) => p.estado_pedido === "cancelado"),
   };
 
-  // Estadísticas rápidas
   const totalIngresos = pedidos
     .filter((p) => p.estado_pedido === "completado")
     .reduce((acc, p) => acc + Number(p.total_final ?? p.total_estimado ?? 0), 0);

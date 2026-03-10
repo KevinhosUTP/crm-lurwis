@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePedidosHistorial } from "../hooks/usePedidosHistorial";
+import { desglosaDetalle } from "../services/pedidosService";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE COLUMNAS KANBAN
@@ -20,22 +21,32 @@ const METODOS_PAGO = [
   { key: "Tarjeta",  icon: "credit_card", color: "text-blue-600",   activeBg: "bg-sky-100 border-sky-400 text-sky-700"        },
 ];
 
-// ── Formatea detalle_pedido (jsonb o string) ──────────────────────────────────
-const formatDetalle = (detalle) => {
-  if (!detalle) return "Sin detalle";
-  if (typeof detalle === "string") return detalle;
-  if (Array.isArray(detalle))
-    return detalle
-      .map((i) => `${i.cantidad ?? i.quantity ?? 1}x ${i.nombre ?? i.name ?? "Item"}`)
-      .join(", ");
-  return JSON.stringify(detalle);
+// ── Chips legibles de items del pedido ───────────────────────────────────────
+const DetalleItems = ({ detalle, cancelado = false }) => {
+  const items = desglosaDetalle(detalle);
+  if (items.length === 0)
+    return <span className="text-xs text-gray-400 italic">Sin detalle</span>;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {items.map(({ nombre, cantidad }, idx) => (
+        <span
+          key={idx}
+          className={`inline-flex items-center text-[11px] font-medium px-1.5 py-0.5 rounded ${
+            cancelado ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-700"
+          }`}
+        >
+          {cantidad > 1 ? `${cantidad}× ` : ""}{nombre}
+        </span>
+      ))}
+    </div>
+  );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 const HistorialPage = () => {
-  const [periodo, setPeriodo]           = useState("Este Mes");
+  const [periodo, setPeriodo]           = useState("Todo");
   const [pagosActivos, setPagosActivos] = useState([]);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
@@ -74,6 +85,7 @@ const HistorialPage = () => {
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value)}
             >
+              <option>Todo</option>
               <option>Hoy</option>
               <option>Esta Semana</option>
               <option>Este Mes</option>
@@ -242,10 +254,8 @@ const HistorialPage = () => {
                       {/* Datos */}
                       <div className="mb-3 pl-1">
                         <p className="font-semibold text-sm text-gray-900">{card.cliente_nombre}</p>
-                        <p className={`text-xs mt-0.5 line-clamp-1 ${card.estado_pedido === "cancelado" ? "text-red-500" : "text-gray-500"}`}>
-                          {formatDetalle(card.detalle_pedido)}
-                        </p>
-                        {total && <p className="text-sm font-bold text-gray-800 mt-1">S/ {Number(total).toFixed(2)}</p>}
+                        <DetalleItems detalle={card.detalle_pedido} cancelado={card.estado_pedido === "cancelado"} />
+                        {total && <p className="text-sm font-bold text-gray-800 mt-1.5">S/ {Number(total).toFixed(2)}</p>}
 
                         {card.tipo_servicio === "delivery" && card.direccion && (
                           <p className={`flex items-center gap-1 text-xs mt-1.5 rounded px-2 py-1 ${
