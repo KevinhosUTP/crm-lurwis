@@ -1,0 +1,47 @@
+# ── Dependencias ───────────────────────────────────────────────────────────────
+node_modules
+# ── Build / distribución ────────────────────────────────────────────────────────
+dist
+dist-ssr
+build
+
+# ── Variables de entorno y secretos (¡NUNCA subir al repo!) ────────────────────
+.env
+.env.*
+!.env.example        # excepción: la plantilla SÍ se puede subir
+
+# ── Archivos de configuración local / IDE ──────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Logs ────────────────────────────────────────────────────────────────────────
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Caché de herramientas ───────────────────────────────────────────────────────
+.cache
+.parcel-cache
+.vite
+.eslintcache
+.stylelintcache
+
+# ── Certificados y claves ───────────────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ── Archivos de sistema operativo ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
