@@ -31,14 +31,16 @@ export const usePedidosHistorial = (periodo, pagosActivos) => {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
+  // Estabilizar el array como string para evitar re-renders infinitos
+  const pagosKey = pagosActivos.join(",");
+
   const cargar = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const { desde, hasta } = getRangoFechas(periodo);
-      // Mapea los estados del historial al campo real estado_pedido
-      // completado → completado, cancelado → cancelado
-      const data = await getPedidosHistorial({ desde, hasta, pagos: pagosActivos });
+      const pagos = pagosKey ? pagosKey.split(",") : [];
+      const data = await getPedidosHistorial({ desde, hasta, pagos });
       setPedidos(data);
     } catch (err) {
       console.error("[usePedidosHistorial]", err);
@@ -46,7 +48,7 @@ export const usePedidosHistorial = (periodo, pagosActivos) => {
     } finally {
       setLoading(false);
     }
-  }, [periodo, pagosActivos]);
+  }, [periodo, pagosKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { cargar(); }, [cargar]);
 

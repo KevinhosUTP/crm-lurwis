@@ -66,16 +66,11 @@ export const usePedidosRealtime = () => {
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "pedidos_picanteria" },
         ({ new: actualizado }) => {
+          // Solo actualizar si el pedido ya está en nuestro estado local
           setPedidos((prev) => {
-            // Si ya no es un estado activo, sacarlo del Kanban
-            if (!COLUMN_ORDER.includes(actualizado.estado_pedido)) {
-              return prev.filter((p) => p.id !== actualizado.id);
-            }
-            // Si ya existe, actualizar; si no, agregar
             const existe = prev.find((p) => p.id === actualizado.id);
-            return existe
-              ? prev.map((p) => (p.id === actualizado.id ? actualizado : p))
-              : [...prev, actualizado];
+            if (!existe) return prev;
+            return prev.map((p) => (p.id === actualizado.id ? actualizado : p));
           });
         }
       )
@@ -91,7 +86,11 @@ export const usePedidosRealtime = () => {
     if (!siguiente) return;
 
     try {
-      await updateEstadoPedido(pedido.id, siguiente);
+      const actualizado = await updateEstadoPedido(pedido.id, siguiente);
+      // Actualizar estado local inmediatamente (no depender solo de Realtime)
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === actualizado.id ? actualizado : p))
+      );
       // Webhooks salientes (no bloqueantes)
       if (pedido.estado_pedido === "pendiente") webhookPedidoAceptado(pedido).catch(console.warn);
       if (pedido.estado_pedido === "cocina")    webhookPedidoListo(pedido).catch(console.warn);
@@ -109,7 +108,11 @@ export const usePedidosRealtime = () => {
 
   const cancelar = useCallback(async (pedido) => {
     try {
-      await cancelarPedido(pedido.id);
+      const actualizado = await cancelarPedido(pedido.id);
+      // Actualizar estado local inmediatamente
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === actualizado.id ? actualizado : p))
+      );
       webhookPedidoCancelado(pedido).catch(console.warn);
       const total = pedido.total_final ?? pedido.total_estimado ?? "?";
       pushCancelado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);

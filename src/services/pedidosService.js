@@ -31,7 +31,7 @@ export const getPedidosActivos = async () => {
   const { data, error } = await supabase
     .from("pedidos_picanteria")
     .select(CAMPOS)
-    .in("estado_pedido", ["pendiente", "cocina", "entregar"])
+    .in("estado_pedido", ["pendiente", "cocina", "entregar", "completado"])
     .order("created_at", { ascending: true });
 
   if (error) throw error;
