@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { usePlatos } from "../hooks/usePlatos";
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ const ConfiguracionPage = () => {
     if (modal.mode === "new") {
       await agregar({ nombre: form.nombre, descripcion: form.descripcion, categoria_id: form.categoria_id });
     } else {
-      await editar(modal.plato.id, { nombre: form.nombre, descripcion: form.descripcion });
+      await editar(modal.plato.id, { nombre: form.nombre, descripcion: form.descripcion, categoria_id: form.categoria_id });
     }
   };
 
@@ -267,10 +267,6 @@ const ConfiguracionPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-3">
             Gestión de Menú
-            <span className="inline-flex items-center bg-green-50 px-3 py-1 rounded-full border border-green-200">
-              <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-              <span className="text-xs font-medium text-green-700">Bot Wilson: Activo</span>
-            </span>
           </h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
             <span className="material-icons-round text-sm">list_alt</span>

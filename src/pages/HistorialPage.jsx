@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { usePedidosHistorial } from "../hooks/usePedidosHistorial";
-import { desglosaDetalle } from "../services/pedidosService";
+import { desglosaDetalle } from "../utils/pedidosUtils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE COLUMNAS KANBAN
@@ -172,7 +172,7 @@ const HistorialPage = () => {
         {[
           { label: "Total pedidos",  value: loading ? "…" : totalPedidos,                          icon: "receipt_long", color: "text-blue-600",  bg: "bg-blue-50"  },
           { label: "Ingresos netos", value: loading ? "…" : `S/ ${totalIngresos.toFixed(2)}`,       icon: "payments",     color: "text-green-600", bg: "bg-green-50" },
-          { label: "Entregados",     value: loading ? "…" : (columns[0]?.cards.length ?? 0),        icon: "two_wheeler",  color: "text-teal-600",  bg: "bg-teal-50"  },
+          { label: "Entregados",     value: loading ? "…" : ((columns[0]?.cards.length ?? 0) + (columns[1]?.cards.length ?? 0)), icon: "two_wheeler",  color: "text-teal-600",  bg: "bg-teal-50"  },
           { label: "Cancelados",     value: loading ? "…" : (columns[2]?.cards.length ?? 0),        icon: "cancel",       color: "text-red-500",   bg: "bg-red-50"   },
         ].map(({ label, value, icon, color, bg }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">

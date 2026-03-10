@@ -78,3 +78,19 @@ export const webhookPedidoCompletado = (p) => sendWebhook("/webhook/pedido-compl
 // Pedido cancelado → N8N → WhatsApp: "Tu pedido fue cancelado"
 export const webhookPedidoCancelado  = (p) => sendWebhook("/webhook/pedido-cancelado",  norm(p));
 
+// ── Finalizar pedido — workflow N8N de producción ─────────────────────────────
+// Llama al workflow: Marcar como Entregado → WhatsApp "provecho" → Borrar Memoria
+// URL fija de producción (no depende de VITE_WEBHOOK_BASE_URL)
+const FINALIZAR_URL = "https://servidor-silva.canadacentral.cloudapp.azure.com/webhook/finalizar-pedido-picanteria";
+
+export const webhookFinalizarPedido = (p) =>
+  fetch(FINALIZAR_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pedido_id: p.id, telefono: p.telefono }),
+  })
+    .then((res) => {
+      if (!res.ok) return res.text().then((t) => { throw new Error(`[webhookFinalizar] ${res.status}: ${t}`); });
+      return res.json().catch(() => null);
+    });
+

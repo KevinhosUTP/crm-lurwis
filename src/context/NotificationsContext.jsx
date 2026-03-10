@@ -1,4 +1,4 @@
-﻿﻿import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 // ─── Tipos de notificacion ────────────────────────────────────────────────────
 export const NOTIF_TYPES = {
   NUEVO_PEDIDO: "nuevo_pedido",

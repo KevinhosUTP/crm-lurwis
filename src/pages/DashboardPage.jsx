@@ -155,7 +155,7 @@ const DashboardPage = () => {
   const donutPago = buildDonutPago(stats?.porPago);
   const totalServicios = (stats?.delivery ?? 0) + (stats?.recojo ?? 0);
   const pctDelivery = totalServicios > 0 ? Math.round(((stats?.delivery ?? 0) / totalServicios) * 100) : 0;
-  const pctRecojo   = 100 - pctDelivery;
+  const pctRecojo   = totalServicios > 0 ? 100 - pctDelivery : 0;
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -346,6 +346,11 @@ const DashboardPage = () => {
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-3 w-full" />
               </div>
+            ) : totalServicios === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-300">
+                <span className="material-icons-round text-3xl mb-1">local_shipping</span>
+                <p className="text-xs text-gray-400">Sin pedidos en este período</p>
+              </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-4">
@@ -386,7 +391,7 @@ const DashboardPage = () => {
             <h3 className="text-lg font-semibold">Últimos Pedidos</h3>
             <Link to="/historial" className="text-sm font-medium text-primary hover:underline">Ver todos</Link>
           </div>
-          <UltimosePedidosTable />
+          <UltimosePedidosTable periodo={selectedPeriod} />
         </div>
 
       </div>
@@ -395,21 +400,44 @@ const DashboardPage = () => {
 };
 
 // ── Tabla de últimos pedidos desde Supabase ───────────────────────────────────
-const UltimosePedidosTable = () => {
+const UltimosePedidosTable = ({ periodo }) => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
+    setLoading(true);
+
+    // Calcular rango de fechas según el período seleccionado
+    const ahora = new Date();
+    const startOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    const hoy = startOf(ahora);
+    let desde = null;
+
+    if (periodo === "Hoy") {
+      desde = hoy;
+    } else if (periodo === "Esta Semana") {
+      const lunes = new Date(hoy);
+      lunes.setDate(hoy.getDate() - (hoy.getDay() === 0 ? 6 : hoy.getDay() - 1));
+      desde = lunes;
+    } else if (periodo === "Este Mes") {
+      desde = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    }
+
+    let query = supabase
       .from("pedidos_picanteria")
       .select("id, cliente_nombre, detalle_pedido, total_final, total_estimado, metodo_pago, tipo_servicio, direccion, estado_pedido, created_at")
       .order("created_at", { ascending: false })
-      .limit(5)
-      .then(({ data, error }) => {
-        if (!error) setPedidos(data ?? []);
-        setLoading(false);
-      });
-  }, []);
+      .limit(5);
+
+    if (desde) {
+      query = query.gte("created_at", desde.toISOString());
+    }
+
+    query.then(({ data, error }) => {
+      if (!error) setPedidos(data ?? []);
+      setLoading(false);
+    });
+  }, [periodo]);
 
   const extraerNombre = (i) => {
     if (!i || typeof i !== "object") return String(i ?? "");

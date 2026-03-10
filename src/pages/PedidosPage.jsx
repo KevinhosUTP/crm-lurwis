@@ -1,6 +1,7 @@
+import { useState, useEffect } from "react";
 import { useNotifications } from "../context/NotificationsContext";
 import { usePedidosRealtime } from "../hooks/usePedidosRealtime";
-import { desglosaDetalle } from "../services/pedidosService";
+import { desglosaDetalle } from "../utils/pedidosUtils";
 
 // ── Config visual por columna ─────────────────────────────────────────────────
 const COLUMN_CONFIG = {
@@ -101,8 +102,17 @@ const ActiveCard = ({ card, colId, onAction, onCancel }) => {
   const cfg = COLUMN_CONFIG[colId];
   const total = card.total_final ?? card.total_estimado;
 
-  // Tiempo desde creación
-  const minutos = Math.floor((Date.now() - new Date(card.created_at).getTime()) / 60000);
+  // Bug fix: el tiempo se recalcula cada minuto para no congelarse
+  const calcMinutos = () =>
+    Math.floor((Date.now() - new Date(card.created_at).getTime()) / 60000);
+
+  const [minutos, setMinutos] = useState(calcMinutos);
+  useEffect(() => {
+    const id = setInterval(() => setMinutos(calcMinutos()), 60_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.created_at]);
+
   const tiempoLabel = minutos < 1 ? "< 1 min" : `${minutos} min`;
   const tiempoColor =
     minutos < 10 ? "text-green-700 bg-green-50" :
@@ -176,6 +186,7 @@ const PedidosPage = () => {
   };
 
   const handleCancel = async (card) => {
+    if (!window.confirm(`¿Cancelar el pedido de ${card.cliente_nombre ?? "este cliente"}? Esta acción no se puede deshacer.`)) return;
     await cancelar(card);
   };
 

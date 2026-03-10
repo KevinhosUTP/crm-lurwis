@@ -14,6 +14,7 @@ import { getPedidosActivos, updateEstadoPedido, cancelarPedido } from "../servic
 import {
   webhookPedidoAceptado, webhookPedidoListo,
   webhookPedidoDespachado, webhookPedidoCompletado, webhookPedidoCancelado,
+  webhookFinalizarPedido,
 } from "../services/webhookService";
 import { useNotifications } from "../context/NotificationsContext";
 
@@ -77,7 +78,11 @@ export const usePedidosRealtime = () => {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [cargarPedidos, pushNuevoPedido]);
+  // pushNuevoPedido se omite intencionalmente de las deps para evitar
+  // que una re-creación de la función destruya y recree el canal Realtime.
+  // Es un useCallback estable; si cambia, la siguiente suscripción lo usará.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargarPedidos]);
 
   // Avanza al siguiente estado del flujo
   const avanzarEstado = useCallback(async (pedido) => {
@@ -100,6 +105,8 @@ export const usePedidosRealtime = () => {
         // Notificación de completado
         const total = pedido.total_final ?? pedido.total_estimado ?? "?";
         pushCompletado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);
+        // ── Workflow N8N: mensaje WhatsApp "provecho" + borrar memoria ──────
+        webhookFinalizarPedido(pedido).catch(console.warn);
       }
     } catch (err) {
       console.error("[avanzarEstado]", err);

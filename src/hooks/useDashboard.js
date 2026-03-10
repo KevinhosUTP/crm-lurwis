@@ -34,14 +34,22 @@ export const useDashboard = (periodo) => {
     try {
       setLoading(true);
       setError(null);
-      // Cargar pedidos Y nombres oficiales de la tabla platos en paralelo
+      // Cargar pedidos Y nombres oficiales de la tabla platos en paralelo.
+      // Los errores de platos se tratan por separado para no bloquear el dashboard.
       const [pedidosData, platosRes] = await Promise.all([
         getStatsDashboard(),
-        supabase.from("platos").select("nombre").eq("activo", true),
+        supabase.from("platos").select("nombre").eq("activo", true).then((r) => r),
       ]);
       setTodosPedidos(pedidosData);
-      setNombresPlatos((platosRes.data ?? []).map((p) => p.nombre));
+      if (platosRes.error) {
+        // Error no crítico: el top 5 funcionará sin normalización de nombres
+        console.warn("[useDashboard] No se pudieron cargar nombres de platos:", platosRes.error.message);
+        setNombresPlatos([]);
+      } else {
+        setNombresPlatos((platosRes.data ?? []).map((p) => p.nombre));
+      }
     } catch (err) {
+      // Error crítico: fallo al cargar pedidos
       console.error("[useDashboard]", err);
       setError(err.message);
     } finally {
