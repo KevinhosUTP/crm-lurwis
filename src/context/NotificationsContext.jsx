@@ -1,40 +1,22 @@
-﻿import { createContext, useContext, useState, useCallback } from "react";
+﻿﻿import { createContext, useContext, useState, useCallback } from "react";
 // ─── Tipos de notificacion ────────────────────────────────────────────────────
 export const NOTIF_TYPES = {
   NUEVO_PEDIDO: "nuevo_pedido",
   CANCELADO:    "cancelado",
-  INFO:         "info",
+  COMPLETADO:   "completado",
 };
 const iconMap = {
-  [NOTIF_TYPES.NUEVO_PEDIDO]: { icon: "shopping_bag",  color: "text-blue-600",  bg: "bg-blue-50"  },
-  [NOTIF_TYPES.CANCELADO]:    { icon: "cancel",         color: "text-red-500",   bg: "bg-red-50"   },
-  [NOTIF_TYPES.INFO]:         { icon: "info",           color: "text-gray-500",  bg: "bg-gray-50"  },
+  [NOTIF_TYPES.NUEVO_PEDIDO]: { icon: "shopping_bag",  color: "text-blue-600",  bg: "bg-blue-50"   },
+  [NOTIF_TYPES.CANCELADO]:    { icon: "cancel",         color: "text-red-500",   bg: "bg-red-50"    },
+  [NOTIF_TYPES.COMPLETADO]:   { icon: "check_circle",   color: "text-green-600", bg: "bg-green-50"  },
 };
-export const notifIcon = (type) => iconMap[type] ?? iconMap[NOTIF_TYPES.INFO];
+export const notifIcon = (type) => iconMap[type] ?? iconMap[NOTIF_TYPES.NUEVO_PEDIDO];
 // ─── Contexto ─────────────────────────────────────────────────────────────────
 const NotificationsContext = createContext(null);
 let _id = 0;
 const uid = () => ++_id;
 export const NotificationsProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([
-    // Notificaciones de ejemplo al arrancar
-    {
-      id: uid(),
-      type: NOTIF_TYPES.NUEVO_PEDIDO,
-      title: "Nuevo pedido #1045",
-      body:  "Sofia Martinez — Ceviche + Chicharron · S/ 65.00",
-      time:  "Hace 1 min",
-      read:  false,
-    },
-    {
-      id: uid(),
-      type: NOTIF_TYPES.CANCELADO,
-      title: "Pedido #1032 cancelado",
-      body:  "Carlos Mendoza cancelo su pedido de S/ 55.00",
-      time:  "Hace 12 min",
-      read:  false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState([]);
   // Agrega una nueva notificacion
   const push = useCallback((type, title, body) => {
     setNotifications((prev) => [
@@ -51,10 +33,13 @@ export const NotificationsProvider = ({ children }) => {
   }, []);
   // Helpers de acceso rapido
   const pushNuevoPedido = useCallback((id, cliente, total) =>
-    push(NOTIF_TYPES.NUEVO_PEDIDO, `Nuevo pedido ${id}`, `${cliente} · S/ ${total}`),
+    push(NOTIF_TYPES.NUEVO_PEDIDO, `Nuevo pedido #${id}`, `${cliente} · S/ ${total}`),
   [push]);
   const pushCancelado = useCallback((id, cliente, total) =>
-    push(NOTIF_TYPES.CANCELADO, `Pedido ${id} cancelado`, `${cliente} cancelo su pedido de S/ ${total}`),
+    push(NOTIF_TYPES.CANCELADO, `Pedido cancelado`, `${cliente} · S/ ${total}`),
+  [push]);
+  const pushCompletado = useCallback((id, cliente, total) =>
+    push(NOTIF_TYPES.COMPLETADO, `Pedido completado`, `${cliente} · S/ ${total}`),
   [push]);
   // Marca una como leida
   const markRead = useCallback((id) =>
@@ -77,6 +62,7 @@ export const NotificationsProvider = ({ children }) => {
       push,
       pushNuevoPedido,
       pushCancelado,
+      pushCompletado,
       markRead,
       markAllRead,
       remove,

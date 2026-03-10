@@ -79,11 +79,9 @@ export const usePlatos = () => {
     setPlatos((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  // Agrupar por categoria_nombre para renderizar la ConfiguracionPage
-  const porCategoria = platos.reduce((acc, plato) => {
-    const cat = plato.categoria_nombre;
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(plato);
+  // Agrupar por categoria_nombre respetando el orden de categorías por id
+  const porCategoria = categorias.reduce((acc, cat) => {
+    acc[cat.nombre] = platos.filter((p) => p.categoria_id === cat.id);
     return acc;
   }, {});
 

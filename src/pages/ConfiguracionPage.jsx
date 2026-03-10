@@ -1,64 +1,6 @@
 ﻿import { useState, useRef, useEffect } from "react";
-// ─── Datos iniciales ──────────────────────────────────────────────────────────
-const INITIAL_SECTIONS = [
-  {
-    id: "ceviches",
-    icon: "set_meal",
-    iconColor: "text-blue-500",
-    titulo: "Ceviches y Entradas",
-    items: [
-      { id: 1, nombre: "Ceviche Clasico",    precio: "35.00", porcion: "unico",    disponible: true },
-      { id: 2, nombre: "Leche de Tigre",     precio: "20.00", porcion: "personal", disponible: true },
-    ],
-  },
-  {
-    id: "fondos",
-    icon: "restaurant_menu",
-    iconColor: "text-orange-500",
-    titulo: "Platos de Fondo",
-    items: [
-      { id: 3, nombre: "Arroz con Mariscos", precio: "40.00", porcion: "unico",    disponible: true },
-      { id: 4, nombre: "Parihuela",          precio: "45.00", porcion: "familiar", disponible: true },
-    ],
-  },
-  {
-    id: "bebidas",
-    icon: "local_cafe",
-    iconColor: "text-purple-500",
-    titulo: "Bebidas y Postres",
-    items: [
-      { id: 5, nombre: "Chicha Morada (1L)", precio: "15.00", porcion: "unico",    disponible: true },
-    ],
-  },
-];
-// ─── Opciones de porcion ──────────────────────────────────────────────────────
-const PORCIONES = [
-  {
-    value: "personal",
-    label: "Personal",
-    desc:  "1 persona",
-    icon:  "person",
-    badge: "bg-blue-50 text-blue-700",
-  },
-  {
-    value: "unico",
-    label: "Unico",
-    desc:  "Estandar",
-    icon:  "restaurant",
-    badge: "bg-sky-50 text-sky-700",
-  },
-  {
-    value: "familiar",
-    label: "Familiar",
-    desc:  "2-4 personas",
-    icon:  "group",
-    badge: "bg-orange-50 text-orange-700",
-  },
-];
-const porcionInfo = (val) => PORCIONES.find((p) => p.value === val) ?? PORCIONES[1];
-// ID autoincrementado global
-let _nextId = 100;
-const nextId = () => ++_nextId;
+import { usePlatos } from "../hooks/usePlatos";
+
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 const ToggleSwitch = ({ id, checked, onChange }) => (
   <div className="relative inline-block w-10 align-middle select-none">
@@ -70,50 +12,55 @@ const ToggleSwitch = ({ id, checked, onChange }) => (
     <span className="absolute top-0 left-0 w-5 h-5 bg-white rounded-full border-4 border-gray-200 peer-checked:border-blue-600 peer-checked:translate-x-5 transition-all duration-300 pointer-events-none" />
   </div>
 );
-// ─── Modal de Edicion / Nuevo Plato ──────────────────────────────────────────
-const EMPTY_ITEM = { nombre: "", precio: "", porcion: "unico" };
-const EditModal = ({ item, sectionTitle, onSave, onClose }) => {
-  const [form, setForm] = useState(
-    item
-      ? { nombre: item.nombre, precio: item.precio, porcion: item.porcion }
-      : EMPTY_ITEM
-  );
+
+// ─── Modal de Edición / Nuevo Plato ──────────────────────────────────────────
+const EditModal = ({ plato, categorias, categoriaPrefill, onSave, onClose }) => {
+  const isNew = !plato;
+  const [form, setForm] = useState({
+    nombre:       plato?.nombre      ?? "",
+    descripcion:  plato?.descripcion ?? "",
+    categoria_id: plato?.categoria_id ?? (categoriaPrefill ?? categorias[0]?.id ?? ""),
+  });
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState(null);
   const inputRef = useRef(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nombre.trim() || !form.precio) return;
-    onSave({ ...form, precio: parseFloat(form.precio).toFixed(2) });
+    if (!form.nombre.trim()) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      await onSave({ ...form, categoria_id: Number(form.categoria_id) });
+      onClose();
+    } catch (error) {
+      setErr(error.message);
+    } finally {
+      setSaving(false);
+    }
   };
-  const isNew = !item;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl border border-border-light dark:border-border-dark w-full max-w-md">
-        {/* Cabecera */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border-light dark:border-border-dark">
-          <div>
-            <h2 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-              {isNew ? "Nuevo plato" : "Editar plato"}
-            </h2>
-            <p className="text-xs text-text-muted-light dark:text-text-muted-dark mt-0.5">{sectionTitle}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
+      <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">{isNew ? "Nuevo plato" : "Editar plato"}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 transition-colors">
             <span className="material-icons-round text-xl">close</span>
           </button>
         </div>
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Nombre */}
           <div>
-            <label className="block text-sm font-medium text-text-main-light dark:text-text-main-dark mb-1">
-              Nombre del plato <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre <span className="text-red-500">*</span>
             </label>
             <input
               ref={inputRef}
@@ -122,85 +69,61 @@ const EditModal = ({ item, sectionTitle, onSave, onClose }) => {
               value={form.nombre}
               onChange={(e) => set("nombre", e.target.value)}
               placeholder="Ej: Ceviche Mixto"
-              className="block w-full px-3 py-2 border border-border-light dark:border-border-dark rounded-md bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark placeholder-text-muted-light dark:placeholder-text-muted-dark focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-colors"
+              className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          {/* Precio */}
+
+          {/* Descripción */}
           <div>
-            <label className="block text-sm font-medium text-text-main-light dark:text-text-main-dark mb-1">
-              Precio (S/) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-3 flex items-center text-text-muted-light dark:text-text-muted-dark text-sm font-medium pointer-events-none">
-                S/
-              </span>
-              <input
-                type="number"
-                required
-                min="0"
-                step="0.50"
-                value={form.precio}
-                onChange={(e) => set("precio", e.target.value)}
-                placeholder="0.00"
-                className="block w-full pl-9 pr-3 py-2 border border-border-light dark:border-border-dark rounded-md bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark placeholder-text-muted-light dark:placeholder-text-muted-dark focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-colors"
-              />
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <input
+              type="text"
+              value={form.descripcion}
+              onChange={(e) => set("descripcion", e.target.value)}
+              placeholder="Ej: Incluye guarnición"
+              className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
           </div>
-          {/* Porcion */}
+
+          {/* Categoría */}
           <div>
-            <label className="block text-sm font-medium text-text-main-light dark:text-text-main-dark mb-2">
-              Porcion del plato
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Categoría <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              {PORCIONES.map(({ value, label, desc, icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => set("porcion", value)}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg border-2 text-center transition-all ${
-                    form.porcion === value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border-light dark:border-border-dark text-text-muted-light dark:text-text-muted-dark hover:border-primary/40 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <span className="material-icons-round text-[22px]">{icon}</span>
-                  <span className="text-sm font-semibold leading-none">{label}</span>
-                  <span className="text-[10px] leading-none opacity-70">{desc}</span>
-                </button>
+            <select
+              required
+              value={form.categoria_id}
+              onChange={(e) => set("categoria_id", e.target.value)}
+              className="block w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-white"
+            >
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
-            </div>
-            {/* Preview */}
-            <div className="mt-3 p-3 rounded-md bg-gray-50 dark:bg-gray-800/50 border border-border-light dark:border-border-dark flex items-center gap-3">
-              <span className="material-icons-round text-primary text-[20px]">
-                {porcionInfo(form.porcion).icon}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-text-muted-light dark:text-text-muted-dark mb-0.5">Vista previa:</p>
-                <p className="text-sm font-medium text-text-main-light dark:text-text-main-dark truncate">
-                  {form.nombre || "Nombre del plato"}
-                  {form.precio ? ` — S/ ${parseFloat(form.precio || 0).toFixed(2)}` : ""}
-                </p>
-              </div>
-              <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${porcionInfo(form.porcion).badge}`}>
-                {porcionInfo(form.porcion).label}
-              </span>
-            </div>
+            </select>
           </div>
-          {/* Acciones */}
+
+          {err && (
+            <p className="text-sm text-red-500 flex items-center gap-1">
+              <span className="material-icons-round text-[16px]">error_outline</span>
+              {err}
+            </p>
+          )}
+
           <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 px-4 border border-border-light dark:border-border-dark rounded-md text-sm font-medium text-text-main-light dark:text-text-main-dark hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex-1 py-2 px-4 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-primary hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5"
+              disabled={saving}
+              className="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-primary hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              <span className="material-icons-round text-[18px]">{isNew ? "add" : "save"}</span>
-              {isNew ? "Agregar" : "Guardar"}
+              <span className="material-icons-round text-[18px]">{saving ? "hourglass_empty" : (isNew ? "add" : "save")}</span>
+              {saving ? "Guardando…" : (isNew ? "Agregar" : "Guardar")}
             </button>
           </div>
         </form>
@@ -208,153 +131,221 @@ const EditModal = ({ item, sectionTitle, onSave, onClose }) => {
     </div>
   );
 };
-// ─── Seccion del menu ─────────────────────────────────────────────────────────
-const MenuSection = ({ section, onSectionChange }) => {
-  const [items, setItems] = useState(section.items);
-  const [modal, setModal] = useState(null);
-  const commit     = (next) => { setItems(next); onSectionChange(section.id, next); };
-  const toggle     = (id)   => commit(items.map((it) => it.id === id ? { ...it, disponible: !it.disponible } : it));
-  const remove     = (id)   => commit(items.filter((it) => it.id !== id));
-  const openEdit   = (item) => setModal({ mode: "edit", item });
-  const openNew    = ()     => setModal({ mode: "new" });
-  const closeModal = ()     => setModal(null);
-  const handleSave = (form) => {
-    if (modal.mode === "edit") {
-      commit(items.map((it) => it.id === modal.item.id ? { ...it, ...form } : it));
-    } else {
-      commit([...items, { id: nextId(), disponible: true, ...form }]);
-    }
-    closeModal();
+
+// ─── Sección de categoría ─────────────────────────────────────────────────────
+const CategoriaSection = ({ categoria, platos, onToggle, onEdit, onDelete, onNew }) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Icono por categoría
+  const icono = (nombre = "") => {
+    const n = nombre.toLowerCase();
+    if (n.includes("ceviche"))               return { icon: "set_meal",        color: "text-blue-500"   };
+    if (n.includes("chicharr"))              return { icon: "lunch_dining",    color: "text-orange-500" };
+    if (n.includes("carta"))                 return { icon: "restaurant_menu", color: "text-green-500"  };
+    if (n.includes("parihuela") || n.includes("sudado")) return { icon: "soup_kitchen", color: "text-red-500" };
+    if (n.includes("dúo") || n.includes("duo")) return { icon: "people",       color: "text-purple-500" };
+    if (n.includes("trío") || n.includes("trio")) return { icon: "groups",     color: "text-indigo-500" };
+    if (n.includes("bebida"))                return { icon: "local_cafe",      color: "text-teal-500"   };
+    return { icon: "restaurant", color: "text-gray-500" };
   };
+  const { icon, color } = icono(categoria);
+
   return (
-    <>
-      <section className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-        {/* Header */}
-        <div className="bg-white px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center">
-            <span className={`material-icons-round ${section.iconColor} mr-2`}>{section.icon}</span>
-            <h2 className="font-bold text-lg text-gray-900">{section.titulo}</h2>
-            <span className="ml-3 bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full text-xs font-medium">
-              {items.length} Platos
-            </span>
-          </div>
-          <button
-            onClick={openNew}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-white border border-blue-500 hover:bg-blue-50 rounded-md transition-colors"
-          >
-            <span className="material-icons-round text-[18px]">add</span>
-            Agregar plato
-          </button>
-        </div>
-        {/* Tabla */}
+    <section className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="bg-white px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex items-center gap-2 text-left"
+        >
+          <span className={`material-icons-round ${color}`}>{icon}</span>
+          <h2 className="font-bold text-lg text-gray-900">{categoria}</h2>
+          <span className="ml-1 bg-gray-100 text-gray-500 px-2.5 py-0.5 rounded-full text-xs font-medium">
+            {platos.length}
+          </span>
+          <span className="material-icons-round text-gray-400 text-sm ml-1">
+            {collapsed ? "expand_more" : "expand_less"}
+          </span>
+        </button>
+        <button
+          onClick={onNew}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-white border border-blue-500 hover:bg-blue-50 rounded-md transition-colors"
+        >
+          <span className="material-icons-round text-[18px]">add</span>
+          Agregar plato
+        </button>
+      </div>
+
+      {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">Nombre del Plato</th>
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Precio (S/)</th>
-                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">Porcion</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">Nombre</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
                 <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">Disponible</th>
                 <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {items.length === 0 && (
+              {platos.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-400">
                     <span className="material-icons-round text-3xl block mb-2 opacity-30">restaurant_menu</span>
-                    Sin platos. Haz clic en &ldquo;Agregar plato&rdquo; para comenzar.
+                    Sin platos. Haz clic en "Agregar plato" para comenzar.
                   </td>
                 </tr>
               )}
-              {items.map((item) => {
-                const p = porcionInfo(item.porcion);
-                return (
-                  <tr key={item.id} className="bg-white hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{item.nombre}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">S/ {item.precio}</span>
-                    </td>
-                    {/* Badge porcion */}
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${p.badge}`}>
-                        <span className="material-icons-round text-[13px]">{p.icon}</span>
-                        {p.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <ToggleSwitch
-                        id={`toggle-${item.id}`}
-                        checked={item.disponible}
-                        onChange={() => toggle(item.id)}
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          title="Editar plato"
-                        >
-                          <span className="material-icons-round text-[18px]">edit</span>
-                        </button>
-                        <button
-                          onClick={() => remove(item.id)}
-                          className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          title="Eliminar plato"
-                        >
-                          <span className="material-icons-round text-[18px]">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {platos.map((plato) => (
+                <tr key={plato.id} className={`bg-white hover:bg-slate-50 transition-colors group ${!plato.activo ? "opacity-50" : ""}`}>
+                  <td className="px-6 py-4">
+                    <span className="font-medium text-gray-900">{plato.nombre}</span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-[260px] truncate">
+                    {plato.descripcion || <span className="italic text-gray-300">Sin descripción</span>}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <ToggleSwitch
+                      id={`toggle-${plato.id}`}
+                      checked={plato.activo}
+                      onChange={() => onToggle(plato.id, !plato.activo)}
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => onEdit(plato)}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Editar plato"
+                      >
+                        <span className="material-icons-round text-[18px]">edit</span>
+                      </button>
+                      <button
+                        onClick={() => onDelete(plato.id)}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Eliminar plato"
+                      >
+                        <span className="material-icons-round text-[18px]">delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </section>
-      {modal && (
-        <EditModal
-          item={modal.mode === "edit" ? modal.item : null}
-          sectionTitle={section.titulo}
-          onSave={handleSave}
-          onClose={closeModal}
-        />
       )}
-    </>
+    </section>
   );
 };
-// ─── Pagina principal ─────────────────────────────────────────────────────────
+
+// ─── Página principal ─────────────────────────────────────────────────────────
 const ConfiguracionPage = () => {
-  const [sections, setSections] = useState(INITIAL_SECTIONS);
-  const handleSectionChange = (sectionId, newItems) =>
-    setSections((prev) => prev.map((s) => s.id === sectionId ? { ...s, items: newItems } : s));
+  const { porCategoria, categorias, loading, error, agregar, editar, toggleDisp, eliminar, recargar } = usePlatos();
+  const [modal, setModal] = useState(null); // { mode: "new"|"edit", plato?, categoriaPrefill? }
+
+  const handleSave = async (form) => {
+    if (modal.mode === "new") {
+      await agregar({ nombre: form.nombre, descripcion: form.descripcion, categoria_id: form.categoria_id });
+    } else {
+      await editar(modal.plato.id, { nombre: form.nombre, descripcion: form.descripcion });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("¿Eliminar este plato? Esta acción no se puede deshacer.")) return;
+    try {
+      await eliminar(id);
+    } catch (e) {
+      alert("Error al eliminar: " + e.message);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center flex-wrap gap-3">
-            Gestion de Menu (Wilson)
-            <span className="inline-flex items-center bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full border border-green-200 dark:border-green-800">
+            Gestión de Menú
+            <span className="inline-flex items-center bg-green-50 px-3 py-1 rounded-full border border-green-200">
               <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-              <span className="text-xs font-medium text-green-700 dark:text-green-400">Bot Wilson: Activo</span>
+              <span className="text-xs font-medium text-green-700">Bot Wilson: Activo</span>
             </span>
           </h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
             <span className="material-icons-round text-sm">list_alt</span>
-            Editor de Lista Estatica &mdash; los cambios se aplican en tiempo real
+            Los cambios se aplican directamente en la base de datos
           </p>
         </div>
+        <button
+          onClick={recargar}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 rounded-md shadow-sm transition-colors"
+        >
+          <span className="material-icons-round text-sm">refresh</span>
+          Actualizar
+        </button>
       </div>
-      <div className="space-y-8 pb-8">
-        {sections.map((section) => (
-          <MenuSection key={section.id} section={section} onSectionChange={handleSectionChange} />
-        ))}
-      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 flex items-center gap-2">
+          <span className="material-icons-round">error_outline</span>
+          Error al cargar el menú: {error}
+          <button onClick={recargar} className="ml-auto underline text-sm">Reintentar</button>
+        </div>
+      )}
+
+      {/* Carga */}
+      {loading && (
+        <div className="flex items-center justify-center py-20 text-gray-400">
+          <span className="material-icons-round animate-spin text-3xl mr-2">refresh</span>
+          Cargando menú…
+        </div>
+      )}
+
+      {/* Secciones por categoría */}
+      {!loading && (
+        <div className="space-y-6 pb-8">
+          {Object.entries(porCategoria).map(([categoriaNombre, platos]) => {
+            const catObj = categorias.find((c) => c.nombre === categoriaNombre);
+            return (
+              <CategoriaSection
+                key={categoriaNombre}
+                categoria={categoriaNombre}
+                platos={platos}
+                onToggle={toggleDisp}
+                onEdit={(plato) => setModal({ mode: "edit", plato })}
+                onDelete={handleDelete}
+                onNew={() => setModal({ mode: "new", categoriaPrefill: catObj?.id })}
+              />
+            );
+          })}
+
+          {Object.keys(porCategoria).length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-300">
+              <span className="material-icons-round text-5xl mb-3">restaurant_menu</span>
+              <p className="text-base font-medium text-gray-400">No hay platos en la base de datos</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal */}
+      {modal && (
+        <EditModal
+          plato={modal.mode === "edit" ? modal.plato : null}
+          categorias={categorias}
+          categoriaPrefill={modal.categoriaPrefill}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
     </div>
   );
 };
+
 export default ConfiguracionPage;
+
+
+
+

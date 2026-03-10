@@ -1,8 +1,5 @@
-import { useNotifications, NOTIF_TYPES } from "../context/NotificationsContext";
+import { useNotifications } from "../context/NotificationsContext";
 import { usePedidosRealtime } from "../hooks/usePedidosRealtime";
-
-// ── Orden del flujo (izquierda → derecha) ─────────────────────────────────────
-const COLUMN_ORDER = ["pendiente", "cocina", "entregar", "completado"];
 
 // ── Config visual por columna ─────────────────────────────────────────────────
 const COLUMN_CONFIG = {
@@ -168,20 +165,14 @@ const ActiveCard = ({ card, colId, onAction, onCancel }) => {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 const PedidosPage = () => {
-  const { push, NOTIF_TYPES: NT } = useNotifications();
   const { columns, loading, error, avanzarEstado, cancelar, recargar } = usePedidosRealtime();
 
   const handleAction = async (card) => {
     await avanzarEstado(card);
-    const sig = COLUMN_ORDER[COLUMN_ORDER.indexOf(card.estado_pedido) + 1];
-    if (sig === "cocina")    push(NOTIF_TYPES.INFO, `Pedido aceptado`, `${card.cliente_nombre} → Cocina`);
-    if (sig === "entregar")  push(NOTIF_TYPES.INFO, `Listo para entregar`, `${card.cliente_nombre}`);
-    if (sig === "completado") push(NOTIF_TYPES.SUCCESS, `Completado`, `${card.cliente_nombre}`);
   };
 
   const handleCancel = async (card) => {
     await cancelar(card);
-    push(NOTIF_TYPES.WARNING, `Pedido cancelado`, `${card.cliente_nombre}`);
   };
 
   const activeCount = columns

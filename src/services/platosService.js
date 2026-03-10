@@ -20,7 +20,7 @@ export const getCategorias = async () => {
     .from("categorias")
     .select("id, nombre, activo")
     .eq("activo", true)
-    .order("nombre");
+    .order("id");
   if (error) throw error;
   return data ?? [];
 };

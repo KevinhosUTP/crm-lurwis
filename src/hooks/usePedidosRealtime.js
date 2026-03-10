@@ -8,27 +8,33 @@
 //   ALTER PUBLICATION supabase_realtime ADD TABLE pedidos_picanteria;
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getPedidosActivos, updateEstadoPedido, cancelarPedido } from "../services/pedidosService";
 import {
   webhookPedidoAceptado, webhookPedidoListo,
   webhookPedidoDespachado, webhookPedidoCompletado, webhookPedidoCancelado,
 } from "../services/webhookService";
+import { useNotifications } from "../context/NotificationsContext";
 
 // Flujo real basado en el campo estado_pedido de pedidos_picanteria
 const COLUMN_ORDER = ["pendiente", "cocina", "entregar", "completado"];
+const MAX_COMPLETADOS = 3;
 
 export const usePedidosRealtime = () => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
+  const { pushNuevoPedido, pushCancelado, pushCompletado } = useNotifications();
+  // Ref para evitar notificaciones en la carga inicial
+  const inicializado = useRef(false);
 
   const cargarPedidos = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getPedidosActivos();
       setPedidos(data);
+      inicializado.current = true;
     } catch (err) {
       console.error("[usePedidosRealtime]", err);
       setError(err.message);
@@ -49,6 +55,11 @@ export const usePedidosRealtime = () => {
           // Solo mostrar en Kanban si está en estados activos
           if (COLUMN_ORDER.includes(nuevo.estado_pedido)) {
             setPedidos((prev) => [nuevo, ...prev]);
+            // Notificar solo después de la carga inicial
+            if (inicializado.current) {
+              const total = nuevo.total_final ?? nuevo.total_estimado ?? "?";
+              pushNuevoPedido(String(nuevo.id).slice(0, 8), nuevo.cliente_nombre ?? "Cliente", total);
+            }
           }
         }
       )
@@ -71,7 +82,7 @@ export const usePedidosRealtime = () => {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [cargarPedidos]);
+  }, [cargarPedidos, pushNuevoPedido]);
 
   // Avanza al siguiente estado del flujo
   const avanzarEstado = useCallback(async (pedido) => {
@@ -87,26 +98,38 @@ export const usePedidosRealtime = () => {
       if (pedido.estado_pedido === "entregar") {
         const fn = pedido.tipo_servicio === "delivery" ? webhookPedidoDespachado : webhookPedidoCompletado;
         fn(pedido).catch(console.warn);
+        // Notificación de completado
+        const total = pedido.total_final ?? pedido.total_estimado ?? "?";
+        pushCompletado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);
       }
     } catch (err) {
       console.error("[avanzarEstado]", err);
     }
-  }, []);
+  }, [pushCompletado]);
 
   const cancelar = useCallback(async (pedido) => {
     try {
       await cancelarPedido(pedido.id);
       webhookPedidoCancelado(pedido).catch(console.warn);
+      const total = pedido.total_final ?? pedido.total_estimado ?? "?";
+      pushCancelado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);
     } catch (err) {
       console.error("[cancelar]", err);
     }
-  }, []);
+  }, [pushCancelado]);
 
-  // Agrupar por columna usando el campo real estado_pedido
-  const columns = COLUMN_ORDER.map((estado) => ({
-    id: estado,
-    cards: pedidos.filter((p) => p.estado_pedido === estado),
-  }));
+  // Agrupar por columna; completados máximo MAX_COMPLETADOS
+  const columns = COLUMN_ORDER.map((estado) => {
+    let cards = pedidos.filter((p) => p.estado_pedido === estado);
+    if (estado === "completado") {
+      // Mostrar solo los últimos MAX_COMPLETADOS (más recientes primero)
+      cards = cards
+        .slice()
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, MAX_COMPLETADOS);
+    }
+    return { id: estado, cards };
+  });
 
   return { columns, loading, error, avanzarEstado, cancelar, recargar: cargarPedidos };
 };

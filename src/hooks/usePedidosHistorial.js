@@ -51,7 +51,6 @@ export const usePedidosHistorial = (periodo, pagosActivos) => {
   useEffect(() => { cargar(); }, [cargar]);
 
   // Agrupar por estado para el Kanban del historial
-  // tipo_servicio='delivery' → columna "completado" / tipo_servicio='recojo' → "recogido"
   const porEstado = {
     completado: pedidos.filter((p) => p.estado_pedido === "completado" && p.tipo_servicio === "delivery"),
     recogido:   pedidos.filter((p) => p.estado_pedido === "completado" && p.tipo_servicio === "recojo"),
