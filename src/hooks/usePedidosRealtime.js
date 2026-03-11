@@ -29,25 +29,29 @@ export const usePedidosRealtime = () => {
   const { pushNuevoPedido, pushCancelado, pushCompletado } = useNotifications();
   // Ref para evitar notificaciones en la carga inicial
   const inicializado = useRef(false);
+  // Ref para rastrear cambios de estado hechos localmente (evitar doble notif via Realtime)
+  const accionesLocales = useRef(new Set());
 
   const cargarPedidos = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getPedidosActivos();
       setPedidos(data);
-      inicializado.current = true;
     } catch (err) {
       console.error("[usePedidosRealtime]", err);
       setError(err.message);
     } finally {
       setLoading(false);
+      // Marcar como inicializado después de la primera carga
+      // (se hace en finally para que el canal ya no suprima notificaciones
+      // si la carga falla o tarda más que el primer evento realtime)
+      inicializado.current = true;
     }
   }, []);
 
   useEffect(() => {
-    cargarPedidos();
-
-    // Supabase Realtime — escucha INSERT/UPDATE en pedidos_picanteria
+    // Suscribir canal ANTES de cargar para no perder eventos que lleguen
+    // durante la carga; inicializado.current impide notificaciones duplicadas
     const channel = supabase
       .channel("pedidos-picanteria-realtime")
       .on("postgres_changes",
@@ -55,7 +59,11 @@ export const usePedidosRealtime = () => {
         ({ new: nuevo }) => {
           // Solo mostrar en Kanban si está en estados activos
           if (COLUMN_ORDER.includes(nuevo.estado_pedido)) {
-            setPedidos((prev) => [nuevo, ...prev]);
+            setPedidos((prev) => {
+              // Evitar duplicados si la carga inicial ya lo incluyó
+              if (prev.find((p) => p.id === nuevo.id)) return prev;
+              return [nuevo, ...prev];
+            });
             // Notificar solo después de la carga inicial
             if (inicializado.current) {
               const total = nuevo.total_final ?? nuevo.total_estimado ?? "?";
@@ -66,16 +74,35 @@ export const usePedidosRealtime = () => {
       )
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "pedidos_picanteria" },
-        ({ new: actualizado }) => {
-          // Solo actualizar si el pedido ya está en nuestro estado local
+        ({ new: actualizado, old: anterior }) => {
           setPedidos((prev) => {
             const existe = prev.find((p) => p.id === actualizado.id);
             if (!existe) return prev;
             return prev.map((p) => (p.id === actualizado.id ? actualizado : p));
           });
+          // Notificar cambios de estado relevantes que vengan desde otro origen
+          // (p.ej. otro dispositivo o la app del cliente)
+          if (inicializado.current && anterior?.estado_pedido !== actualizado.estado_pedido) {
+            // Si el cambio fue iniciado localmente, ya se notificó en avanzarEstado/cancelar
+            const claveLocal = `${actualizado.id}:${actualizado.estado_pedido}`;
+            if (accionesLocales.current.has(claveLocal)) {
+              accionesLocales.current.delete(claveLocal);
+            } else {
+              const total = actualizado.total_final ?? actualizado.total_estimado ?? "?";
+              const cliente = actualizado.cliente_nombre ?? "Cliente";
+              const idCorto = String(actualizado.id).slice(0, 8);
+              if (actualizado.estado_pedido === "completado") {
+                pushCompletado(idCorto, cliente, total);
+              } else if (actualizado.estado_pedido === "cancelado") {
+                pushCancelado(idCorto, cliente, total);
+              }
+            }
+          }
         }
       )
       .subscribe();
+
+    cargarPedidos();
 
     return () => supabase.removeChannel(channel);
   // pushNuevoPedido se omite intencionalmente de las deps para evitar
@@ -104,6 +131,8 @@ export const usePedidosRealtime = () => {
         fn(pedido).catch(console.warn);
         // Notificación de completado
         const total = pedido.total_final ?? pedido.total_estimado ?? "?";
+        // Marcar como acción local para evitar doble notificación via Realtime
+        accionesLocales.current.add(`${pedido.id}:completado`);
         pushCompletado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);
         // ── Workflow N8N: mensaje WhatsApp "provecho" + borrar memoria ──────
         webhookFinalizarPedido(pedido).catch(console.warn);
@@ -122,6 +151,8 @@ export const usePedidosRealtime = () => {
       );
       webhookPedidoCancelado(pedido).catch(console.warn);
       const total = pedido.total_final ?? pedido.total_estimado ?? "?";
+      // Marcar como acción local para evitar doble notificación via Realtime
+      accionesLocales.current.add(`${pedido.id}:cancelado`);
       pushCancelado(String(pedido.id).slice(0, 8), pedido.cliente_nombre ?? "Cliente", total);
     } catch (err) {
       console.error("[cancelar]", err);

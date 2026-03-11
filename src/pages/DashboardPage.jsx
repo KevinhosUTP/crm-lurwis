@@ -532,13 +532,13 @@ const UltimosePedidosTable = ({ periodo }) => {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    row.tipo_servicio === "delivery" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"
+                    (row.tipo_servicio ?? "").toLowerCase() === "delivery" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"
                   }`}>
-                    {row.tipo_servicio === "delivery" ? "Delivery" : "Recojo"}
+                    {(row.tipo_servicio ?? "").toLowerCase() === "delivery" ? "Delivery" : "Recojo"}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  {row.tipo_servicio === "delivery" && row.direccion ? (
+                  {(row.tipo_servicio ?? "").toLowerCase() === "delivery" && row.direccion && row.direccion !== "Sin dirección" ? (
                     <span className="flex items-center text-xs text-gray-600 gap-1">
                       <span className="material-icons-round text-blue-400 text-[14px]">location_on</span>
                       <span className="max-w-[160px] truncate" title={row.direccion}>{row.direccion}</span>

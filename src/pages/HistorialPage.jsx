@@ -257,7 +257,7 @@ const HistorialPage = () => {
                         <DetalleItems detalle={card.detalle_pedido} cancelado={card.estado_pedido === "cancelado"} />
                         {total && <p className="text-sm font-bold text-gray-800 mt-1.5">S/ {Number(total).toFixed(2)}</p>}
 
-                        {card.tipo_servicio === "delivery" && card.direccion && (
+                        {(card.tipo_servicio ?? "").toLowerCase() === "delivery" && card.direccion && card.direccion !== "Sin dirección" && (
                           <p className={`flex items-center gap-1 text-xs mt-1.5 rounded px-2 py-1 ${
                             card.estado_pedido === "cancelado" ? "bg-red-50 text-red-400" : "bg-blue-50 text-blue-600"
                           }`}>
@@ -269,7 +269,7 @@ const HistorialPage = () => {
 
                       {/* Footer: tipo + pago */}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                        {card.tipo_servicio === "delivery" ? (
+                        {(card.tipo_servicio ?? "").toLowerCase() === "delivery" ? (
                           <span className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 text-blue-600" title="Delivery">
                             <span className="material-icons-round text-[16px]">two_wheeler</span>
                           </span>
