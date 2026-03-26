@@ -26,8 +26,8 @@ export const usePedidosRealtime = () => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
-  const { pushNuevoPedido, pushCancelado, pushCompletado } = useNotifications();
-  // Ref para evitar notificaciones en la carga inicial
+  const { pushCancelado, pushCompletado } = useNotifications();
+  // Ref para evitar notificaciones de UPDATE en la carga inicial
   const inicializado = useRef(false);
   // Ref para rastrear cambios de estado hechos localmente (evitar doble notif via Realtime)
   const accionesLocales = useRef(new Set());
@@ -64,11 +64,6 @@ export const usePedidosRealtime = () => {
               if (prev.find((p) => p.id === nuevo.id)) return prev;
               return [nuevo, ...prev];
             });
-            // Notificar solo después de la carga inicial
-            if (inicializado.current) {
-              const total = nuevo.total_final ?? nuevo.total_estimado ?? "?";
-              pushNuevoPedido(String(nuevo.id).slice(0, 8), nuevo.cliente_nombre ?? "Cliente", total);
-            }
           }
         }
       )
@@ -105,10 +100,6 @@ export const usePedidosRealtime = () => {
     cargarPedidos();
 
     return () => supabase.removeChannel(channel);
-  // pushNuevoPedido se omite intencionalmente de las deps para evitar
-  // que una re-creación de la función destruya y recree el canal Realtime.
-  // Es un useCallback estable; si cambia, la siguiente suscripción lo usará.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargarPedidos]);
 
   // Avanza al siguiente estado del flujo

@@ -2,6 +2,13 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import { usePedidosNotificationsRealtime } from "../hooks/usePedidosNotificationsRealtime";
+
+const RealtimeNotificationsBridge = () => {
+  usePedidosNotificationsRealtime();
+  return null;
+};
+
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
@@ -11,6 +18,7 @@ const MainLayout = () => {
   }, [location.pathname]);
   return (
     <div className="bg-gray-50 text-gray-900 h-screen flex overflow-hidden font-display">
+      <RealtimeNotificationsBridge />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
         <Header onMenuClick={() => setSidebarOpen((v) => !v)} />
