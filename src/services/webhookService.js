@@ -81,7 +81,7 @@ export const webhookPedidoCancelado  = (p) => sendWebhook("/webhook/pedido-cance
 // ── Finalizar pedido — workflow N8N de producción ─────────────────────────────
 // Llama al workflow: Marcar como Entregado → WhatsApp "provecho" → Borrar Memoria
 // URL fija de producción (no depende de VITE_WEBHOOK_BASE_URL)
-const FINALIZAR_URL = "https://servidor-silva.canadacentral.cloudapp.azure.com/webhook/finalizar-pedido-picanteria";
+const FINALIZAR_URL = "https://kevosilva.dev/webhook/finalizar-pedido-picanteria";
 
 export const webhookFinalizarPedido = (p) =>
   fetch(FINALIZAR_URL, {
